@@ -67,6 +67,7 @@ jobs:
             --delete \
             --acl public-read
           
+          echo final setup
           aws s3 website s3://${{ env.BUCKET_NAME }} \
             --index-document index.html \
             --error-document index.html \
