@@ -53,7 +53,7 @@ jobs:
           AWS_DEFAULT_REGION: gra
         run: |
           echo "Deploying to bucket: ${{ env.BUCKET_NAME }}"
-          aws s3 sync ./dist s3://${{ env.BUCKET_NAME }} \
+          aws s3 sync ./out s3://${{ env.BUCKET_NAME }} \
             --endpoint-url https://s3.gra.io.cloud.ovh.net \
             --delete \
             --acl public-read
