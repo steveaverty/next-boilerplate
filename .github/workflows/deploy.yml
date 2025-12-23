@@ -56,4 +56,4 @@ jobs:
           aws s3 sync ./dist s3://${{ env.BUCKET_NAME }} \
             --endpoint-url https://s3.gra.io.cloud.ovh.net \
             --delete \
-            --acl public-reads
+            --acl public-read
