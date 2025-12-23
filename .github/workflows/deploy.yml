@@ -1,0 +1,59 @@
+name: Deploy React (Multi-Environment)
+
+on:
+  push:
+    branches:
+      - main     # Déploie en Prod
+      - develop  # Déploie en Staging (crée cette branche si tu ne l'as pas)
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    # Cette étape permet d'éviter que deux déploiements se marchent dessus
+    concurrency: 
+      group: ${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      # --- C'est ici que la magie opère ---
+      
+      # 1. Définir le nom du bucket selon la branche
+      - name: Set Environment Variables
+        id: env-selector
+        run: |
+          if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
+            echo "BUCKET_NAME=${{ secrets.OVH_BUCKET_NAME_PROD }}" >> $GITHUB_ENV
+            echo "ENV_NAME=Production" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == 'refs/heads/develop' ]]; then
+            echo "BUCKET_NAME=${{ secrets.OVH_BUCKET_NAME_STAGING }}" >> $GITHUB_ENV
+            echo "ENV_NAME=Staging" >> $GITHUB_ENV
+          fi
+
+      # 2. Déploiement vers le bucket sélectionné
+      - name: Deploy to OVH S3 (${{ env.ENV_NAME }})
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.OVH_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.OVH_SECRET_KEY }}
+          AWS_DEFAULT_REGION: gra
+        run: |
+          echo "Deploying to bucket: ${{ env.BUCKET_NAME }}"
+          aws s3 sync ./dist s3://${{ env.BUCKET_NAME }} \
+            --endpoint-url https://s3.gra.io.cloud.ovh.net \
+            --delete \
+            --acl public-reads
