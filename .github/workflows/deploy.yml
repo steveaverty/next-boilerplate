@@ -3,14 +3,13 @@ name: Deploy React (Multi-Environment)
 on:
   push:
     branches:
-      - main     # Déploie en Prod
-      - develop  # Déploie en Staging (crée cette branche si tu ne l'as pas)
+      - main
+      - develop
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
-    # Cette étape permet d'éviter que deux déploiements se marchent dessus
     concurrency: 
       group: ${{ github.ref }}
       cancel-in-progress: true
@@ -31,29 +30,39 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      # --- C'est ici que la magie opère ---
+      # --- Configuration dynamique ---
       
-      # 1. Définir le nom du bucket selon la branche
       - name: Set Environment Variables
         id: env-selector
         run: |
           if [[ "${{ github.ref }}" == 'refs/heads/main' ]]; then
             echo "BUCKET_NAME=${{ secrets.OVH_BUCKET_NAME_PROD }}" >> $GITHUB_ENV
             echo "ENV_NAME=Production" >> $GITHUB_ENV
+            # On définit l'endpoint ici via le secret
+            echo "OVH_ENDPOINT=${{ secrets.OVH_ENDPOINT }}" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == 'refs/heads/develop' ]]; then
             echo "BUCKET_NAME=${{ secrets.OVH_BUCKET_NAME_STAGING }}" >> $GITHUB_ENV
             echo "ENV_NAME=Staging" >> $GITHUB_ENV
+            # Tu peux utiliser le même endpoint, ou un autre secret si la staging est ailleurs
+            echo "OVH_ENDPOINT=${{ secrets.OVH_ENDPOINT }}" >> $GITHUB_ENV
           fi
 
-      # 2. Déploiement vers le bucket sélectionné
+      # --- Déploiement ---
+      
       - name: Deploy to OVH S3 (${{ env.ENV_NAME }})
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.OVH_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.OVH_SECRET_KEY }}
-          AWS_DEFAULT_REGION: gra
+          # On peut laisser 'gra' par défaut, ou le rendre dynamique si nécessaire
+          AWS_DEFAULT_REGION: gra 
         run: |
-          echo "Deploying to bucket: ${{ env.BUCKET_NAME }}"
+          echo "Deploying to bucket: ${{ env.BUCKET_NAME }} on endpoint ${{ env.OVH_ENDPOINT }}"
+          
+          # Attention: J'ai vu que tu avais mis './out' dans ton message précédent.
+          # Si tu utilises Next.js (static export), c'est bien './out'.
+          # Si tu utilises Vite, remets './dist'.
+          
           aws s3 sync ./out s3://${{ env.BUCKET_NAME }} \
-            --endpoint-url https://s3.gra.io.cloud.ovh.net \
+            --endpoint-url ${{ env.OVH_ENDPOINT }} \
             --delete \
             --acl public-read
