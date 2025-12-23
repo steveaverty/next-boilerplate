@@ -66,3 +66,12 @@ jobs:
             --endpoint-url ${{ env.OVH_ENDPOINT }} \
             --delete \
             --acl public-read
+
+          # 2. Configuration du mode "Site Web" (indispensable)
+          # On dit à S3 : "Si on ne demande rien, sers index.html. Si on demande une page qui n'existe pas, sers aussi index.html (pour React)"
+          aws s3 website s3://${{ env.BUCKET_NAME }} \
+            --index-document index.html \
+            --error-document index.html \
+            --endpoint-url ${{ env.OVH_ENDPOINT }}
+
+        
